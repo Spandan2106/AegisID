@@ -8,6 +8,7 @@ The project is built as a prototype for **Smart India Hackathon (SIH) 2026 – P
 
 ---
 
+
 ## 🚀 Key Features
 
 ### 🔐 Authentication & Access Control
