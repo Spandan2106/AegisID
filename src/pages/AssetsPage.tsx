@@ -1,11 +1,14 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { api } from "../api/client";
+import { digitalAssetApi } from "../services/digitalAssetApi";
 import { useAuth } from "../context/AuthContext";
 import { useNotification } from "../context/NotificationContext";
-import { Box, Plus, ShieldCheck, Trash2, PauseCircle, PlayCircle, Send, Copy, Check, Info } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { Box, Plus, ShieldCheck, Trash2, PauseCircle, PlayCircle, Send, Copy, Check, Info, CheckCircle2, Filter, Calendar, Eye, FileBadge } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 import { format, subDays, isAfter, startOfDay } from "date-fns";
 import { BlockchainProofModal } from "../components/BlockchainProofModal";
+import { FilePreview } from "../components/FilePreview";
+import { AssetMetadataEditor, MetadataEntry } from "../components/AssetMetadataEditor";
 
 export function AssetsPage() {
   const { user } = useAuth();
@@ -23,14 +26,19 @@ export function AssetsPage() {
   
   const [proofModal, setProofModal] = useState<{isOpen: boolean, id: number | null}>({ isOpen: false, id: null });
   
-  const [form, setForm] = useState({ userId: "", assetName: "", assetType: "IntellectualProperty", ownerAddress: "0x71C359918E7E91c667104b90C5b0C627c54143a5" });
+  const [form, setForm] = useState({ userId: "", assetName: "", assetDescription: "", assetType: "IntellectualProperty" });
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [metadata, setMetadata] = useState<MetadataEntry[]>([]);
+  const [createdAssetId, setCreatedAssetId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [filterType, setFilterType] = useState<string>("ALL");
+  const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: "", end: "" });
 
   const canManageAssets = ["SUPER_ADMIN", "ADMIN", "ISSUER"].includes(user?.role || "");
 
   async function loadAssets() {
     try {
-      const data = await api.get("/assets");
+      const data = await digitalAssetApi.getDigitalAssets();
       setAssets(data);
     } catch (err: any) {
       showNotification("error", "Failed to Load", err.message || "Could not load assets");
@@ -43,6 +51,26 @@ export function AssetsPage() {
     loadAssets();
   }, []);
 
+  const filteredAssets = useMemo(() => {
+    return assets.filter(a => {
+      // Filter by type
+      if (filterType !== "ALL" && a.assetType !== filterType) return false;
+      
+      // Filter by date
+      if (dateRange.start) {
+        if (new Date(a.createdAt) < new Date(dateRange.start)) return false;
+      }
+      if (dateRange.end) {
+        // add 1 day to end date to include the whole day
+        const endDate = new Date(dateRange.end);
+        endDate.setDate(endDate.getDate() + 1);
+        if (new Date(a.createdAt) >= endDate) return false;
+      }
+      
+      return true;
+    });
+  }, [assets, filterType, dateRange]);
+
   const handleCopy = (text: string, type: string) => {
     navigator.clipboard.writeText(text);
     setCopiedHash(type);
@@ -54,17 +82,39 @@ export function AssetsPage() {
     return `${hash.slice(0, 6)}...${hash.slice(-4)}`;
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setSelectedFile(e.target.files[0]);
+    }
+  };
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!selectedFile) {
+      showNotification("error", "File Required", "Please select a file to upload.");
+      return;
+    }
+
     setIsSubmitting(true);
-    showNotification("info", "Submitting Transaction...", "Anchoring digital asset to blockchain.");
+    showNotification("info", "Uploading Asset...", "Preparing digital asset for registry.");
     
     try {
-      await api.post("/assets", form);
-      setShowModal(false);
-      setForm({ userId: "", assetName: "", assetType: "IntellectualProperty", ownerAddress: "0x71C359918E7E91c667104b90C5b0C627c54143a5" });
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+      formData.append("assetName", form.assetName);
+      formData.append("description", form.assetDescription);
+      formData.append("assetType", form.assetType);
+      formData.append("ownerId", String(form.userId));
+      
+      const data = await digitalAssetApi.uploadDigitalAsset(formData);
+      
+      setCreatedAssetId(data.assetId || data.id || "AST-UNKNOWN");
+      setForm({ userId: "", assetName: "", assetDescription: "", assetType: "IntellectualProperty" });
+      setSelectedFile(null);
+      setMetadata([]);
       await loadAssets();
-      showNotification("success", "Asset Registered", "Digital asset has been successfully anchored.");
+      showNotification("success", "Asset Registered", "Digital asset has been successfully created.");
     } catch (err: any) {
       showNotification("error", "Registration Failed", err.message);
     } finally {
@@ -118,6 +168,24 @@ export function AssetsPage() {
     }));
   }, [assets]);
 
+  const assetTypeDistribution = useMemo(() => {
+    if (!assets || assets.length === 0) return [];
+    
+    const typeCounts: Record<string, number> = {};
+    assets.forEach(asset => {
+      const type = asset.assetType || "Unknown";
+      typeCounts[type] = (typeCounts[type] || 0) + 1;
+    });
+
+    const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#64748b'];
+    
+    return Object.keys(typeCounts).map((type, index) => ({
+      name: type.replace(/([A-Z])/g, ' $1').trim(), // Add spaces before capital letters
+      value: typeCounts[type],
+      color: COLORS[index % COLORS.length]
+    }));
+  }, [assets]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -136,104 +204,194 @@ export function AssetsPage() {
         )}
       </div>
 
-      {canManageAssets && (
-        <div className="bg-white dark:bg-[#0d0d0f] border border-slate-200 dark:border-white/10 rounded-3xl p-6 shadow-sm">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white mb-6">Asset Issuance (Last 30 Days)</h2>
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#94a3b8" className="dark:opacity-20" opacity={0.5} vertical={false} />
-                <XAxis dataKey="date" stroke="#64748b" fontSize={12} tickMargin={10} axisLine={false} tickLine={false} />
-                <YAxis stroke="#64748b" fontSize={12} allowDecimals={false} axisLine={false} tickLine={false} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: 'var(--tw-colors-slate-900)', borderColor: '#334155', color: '#fff', borderRadius: '12px' }}
-                  itemStyle={{ color: '#60a5fa' }}
-                />
-                <Line type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={3} dot={{ fill: '#3b82f6', r: 4, strokeWidth: 0 }} activeDot={{ r: 6, strokeWidth: 0 }} name="Assets Issued" />
-              </LineChart>
-            </ResponsiveContainer>
+      {/* Analytics Dashboard */}
+      {(assets.length > 0 || canManageAssets) && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="bg-white dark:bg-[#0d0d0f] border border-slate-200 dark:border-white/10 rounded-3xl p-6 shadow-sm lg:col-span-2">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white mb-6">
+              {canManageAssets ? "Asset Issuance" : "Asset Activity"} (Last 30 Days)
+            </h2>
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#94a3b8" className="dark:opacity-20" opacity={0.5} vertical={false} />
+                  <XAxis dataKey="date" stroke="#64748b" fontSize={12} tickMargin={10} axisLine={false} tickLine={false} />
+                  <YAxis stroke="#64748b" fontSize={12} allowDecimals={false} axisLine={false} tickLine={false} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: 'var(--tw-colors-slate-900)', borderColor: '#334155', color: '#fff', borderRadius: '12px' }}
+                    itemStyle={{ color: '#60a5fa' }}
+                  />
+                  <Line type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={3} dot={{ fill: '#3b82f6', r: 4, strokeWidth: 0 }} activeDot={{ r: 6, strokeWidth: 0 }} name="Assets Issued" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          
+          <div className="bg-white dark:bg-[#0d0d0f] border border-slate-200 dark:border-white/10 rounded-3xl p-6 shadow-sm">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white mb-6">Asset Distribution</h2>
+            <div className="h-64 w-full">
+              {assetTypeDistribution.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={assetTypeDistribution}
+                      cx="50%"
+                      cy="45%"
+                      innerRadius={60}
+                      outerRadius={80}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {assetTypeDistribution.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'var(--tw-colors-slate-900)', borderColor: '#334155', color: '#fff', borderRadius: '12px', border: 'none' }}
+                      itemStyle={{ color: '#e2e8f0', fontSize: '12px' }}
+                    />
+                    <Legend 
+                      verticalAlign="bottom" 
+                      height={36} 
+                      iconType="circle" 
+                      wrapperStyle={{ fontSize: '12px', color: '#64748b', paddingTop: '10px' }} 
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-sm text-slate-500">
+                  No assets available
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
 
-      <div className="bg-white dark:bg-[#0d0d0f] border border-slate-200 dark:border-white/10 rounded-2xl overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/[0.02] text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                <th className="p-4">Asset</th>
-                <th className="p-4">Type</th>
-                <th className="p-4">Owner</th>
-                <th className="p-4">Cryptographic Hash</th>
-                <th className="p-4">Status</th>
-                {canManageAssets && <th className="p-4 text-right">Actions</th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-white/5 text-sm text-slate-700 dark:text-slate-300">
-              {loading ? (
-                <tr><td colSpan={canManageAssets ? 6 : 5} className="p-8 text-center text-slate-500 flex items-center justify-center space-x-2">Loading assets...</td></tr>
-              ) : assets.length === 0 ? (
-                <tr><td colSpan={canManageAssets ? 6 : 5} className="p-8 text-center text-slate-500">No digital assets found in the registry.</td></tr>
-              ) : (
-                assets.map((a) => (
-                  <tr key={a.id} onClick={() => setSelectedAssetDetails(a)} className="hover:bg-slate-50 dark:hover:bg-white/[0.02] transition-colors cursor-pointer">
+      {/* Asset List & Filters */}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-[#0d0d0f] border border-slate-200 dark:border-white/10 rounded-2xl p-4 shadow-sm">
+          <div className="flex items-center space-x-2 text-sm text-slate-700 dark:text-slate-300">
+            <Filter className="w-4 h-4 text-slate-400" />
+            <span className="font-semibold">Filter Assets</span>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            <div className="flex items-center space-x-2 w-full sm:w-auto">
+              <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
+              <input 
+                type="date" 
+                value={dateRange.start} 
+                onChange={e => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                className="bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto"
+                title="Start Date"
+              />
+              <span className="text-slate-400 text-xs">to</span>
+              <input 
+                type="date" 
+                value={dateRange.end} 
+                onChange={e => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                className="bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto"
+                title="End Date"
+              />
+            </div>
+            
+            <select
+              value={filterType}
+              onChange={e => setFilterType(e.target.value)}
+              className="w-full sm:w-auto bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="ALL">All Types</option>
+              <option value="IntellectualProperty">Intellectual Property</option>
+              <option value="FinancialInstrument">Financial Instrument</option>
+              <option value="DigitalIP">Digital IP</option>
+              <option value="IdentityRecord">Identity Record</option>
+              <option value="Certificate">Certificate</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-[#0d0d0f] border border-slate-200 dark:border-white/10 rounded-2xl overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/[0.02] text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  <th className="p-4">Asset ID</th>
+                  <th className="p-4">Asset Name</th>
+                  <th className="p-4">File / Format</th>
+                  <th className="p-4">Status</th>
+                  <th className="p-4">Created Date</th>
+                  <th className="p-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200 dark:divide-white/5 text-sm text-slate-700 dark:text-slate-300">
+                {loading ? (
+                  <tr><td colSpan={6} className="p-8 text-center text-slate-500 flex items-center justify-center space-x-2">Loading assets...</td></tr>
+                ) : filteredAssets.length === 0 ? (
+                  <tr><td colSpan={6} className="p-8 text-center text-slate-500">No digital assets match your criteria.</td></tr>
+                ) : (
+                  filteredAssets.map((a) => (
+                    <tr key={a.id} className="hover:bg-slate-50 dark:hover:bg-white/[0.02] transition-colors">
+                    <td className="p-4">
+                      <span className="font-mono text-xs text-blue-600 dark:text-blue-400 font-semibold">{a.assetId || `AST-${a.id}`}</span>
+                    </td>
                     <td className="p-4">
                       <div className="font-semibold text-slate-900 dark:text-white">{a.assetName}</div>
-                      <div className="text-xs text-slate-500">Asset #{a.id}</div>
                     </td>
-                    <td className="p-4 font-medium">{a.assetType}</td>
-                    <td className="p-4 font-semibold text-slate-900 dark:text-white">User #{a.userId}</td>
                     <td className="p-4">
-                      <div className="font-mono text-xs text-blue-600 dark:text-blue-400 mb-1">{formatHash(a.assetHash)}</div>
-                      <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Tx: {formatHash(a.blockchainTxHash)}</div>
+                      <div className="flex flex-col">
+                        <span className="text-slate-700 dark:text-slate-300">{a.fileName || "-"}</span>
+                        {a.fileFormat && (
+                          <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded font-semibold uppercase tracking-wider w-fit mt-1">{a.fileFormat}</span>
+                        )}
+                      </div>
                     </td>
                     <td className="p-4">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                        a.status === "ACTIVE" 
+                        a.status === "ACTIVE" || a.status === "REGISTERED"
                           ? "bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20" 
                           : "bg-amber-50 text-amber-600 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20"
                       }`}>
-                        {a.status}
+                        {a.status || "REGISTERED"}
                       </span>
                     </td>
-                    {canManageAssets && (
-                      <td className="p-4 text-right space-x-2">
-                        {a.status === "ACTIVE" ? (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleAction(a.id, "suspend"); }}
-                            disabled={actionLoading === a.id}
-                            title="Suspend Asset"
-                            className="p-1.5 hover:bg-amber-50 dark:hover:bg-amber-500/10 text-amber-500 dark:text-amber-400 rounded-lg transition-colors inline-flex border border-transparent hover:border-amber-200 dark:hover:border-amber-500/20 disabled:opacity-50"
-                          >
-                            <PauseCircle className="w-4 h-4" />
-                          </button>
-                        ) : (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleAction(a.id, "activate"); }}
-                            disabled={actionLoading === a.id}
-                            title="Activate Asset"
-                            className="p-1.5 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg transition-colors inline-flex border border-transparent hover:border-emerald-200 dark:hover:border-emerald-500/20 disabled:opacity-50"
-                          >
-                            <PlayCircle className="w-4 h-4" />
-                          </button>
-                        )}
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setSelectedAssetId(a.id); setShowTransferModal(true); }}
-                          title="Transfer Asset"
-                          className="p-1.5 hover:bg-blue-50 dark:hover:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-lg transition-colors inline-flex border border-transparent hover:border-blue-200 dark:hover:border-blue-500/20"
-                        >
-                          <Send className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); if(window.confirm('Are you sure you want to delete this asset?')) handleAction(a.id, "delete") }}
-                          disabled={actionLoading === a.id}
-                          title="Delete Asset"
-                          className="p-1.5 hover:bg-red-50 dark:hover:bg-red-500/10 text-red-600 dark:text-red-400 rounded-lg transition-colors inline-flex border border-transparent hover:border-red-200 dark:hover:border-red-500/20 disabled:opacity-50"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </td>
-                    )}
+                    <td className="p-4 font-medium">
+                      {a.createdAt ? new Date(a.createdAt).toLocaleDateString() : "-"}
+                    </td>
+                    <td className="p-4 text-right space-x-2">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleCopy(a.assetId || `AST-${a.id}`, `table-${a.id}`) }}
+                        title="Copy ID"
+                        className="p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 text-slate-500 dark:text-slate-400 rounded-lg transition-colors inline-flex border border-transparent"
+                      >
+                        {copiedHash === `table-${a.id}` ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                      </button>
+                      <button
+                        onClick={async (e) => { 
+                          e.stopPropagation(); 
+                          try {
+                            const details = await digitalAssetApi.getDigitalAsset(a.assetId || a.id);
+                            setSelectedAssetDetails(details);
+                          } catch(err) {
+                            showNotification("error", "Error", "Could not fetch asset details");
+                          }
+                        }}
+                        title="View Asset"
+                        className="p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 text-slate-500 dark:text-slate-400 rounded-lg transition-colors inline-flex border border-transparent"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          window.location.href = `/verify-asset?assetId=${a.assetId || `AST-${a.id}`}`;
+                        }}
+                        title="Verify Asset"
+                        className="p-1.5 hover:bg-blue-50 dark:hover:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-lg transition-colors inline-flex border border-transparent"
+                      >
+                        <ShieldCheck className="w-4 h-4" />
+                      </button>
+                    </td>
                   </tr>
                 ))
               )}
@@ -241,80 +399,155 @@ export function AssetsPage() {
           </table>
         </div>
       </div>
+      </div>
 
       {/* Register Asset Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => !isSubmitting && setShowModal(false)}></div>
           <div className="relative bg-white dark:bg-[#1a1a1f] border border-slate-200 dark:border-white/10 rounded-3xl w-full max-w-md p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">Register Digital Asset</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Anchor a new digital asset to the blockchain ledger.</p>
-            
-            <form onSubmit={handleRegister} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Owner User ID</label>
-                <input
-                  type="number"
-                  required
-                  disabled={isSubmitting}
-                  value={form.userId}
-                  onChange={(e) => setForm({ ...form, userId: e.target.value })}
-                  className="w-full bg-slate-50 dark:bg-[#0d0d0f] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all disabled:opacity-50"
-                  placeholder="e.g. 5"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Asset Name / Title</label>
-                <input
-                  type="text"
-                  required
-                  disabled={isSubmitting}
-                  value={form.assetName}
-                  onChange={(e) => setForm({ ...form, assetName: e.target.value })}
-                  className="w-full bg-slate-50 dark:bg-[#0d0d0f] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all disabled:opacity-50"
-                  placeholder="Enterprise IP Deed #109"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Asset Type</label>
-                <input
-                  type="text"
-                  required
-                  disabled={isSubmitting}
-                  value={form.assetType}
-                  onChange={(e) => setForm({ ...form, assetType: e.target.value })}
-                  className="w-full bg-slate-50 dark:bg-[#0d0d0f] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all disabled:opacity-50"
-                  placeholder="IntellectualProperty"
-                />
-              </div>
-              
-              <div className="bg-blue-50 dark:bg-blue-500/10 p-4 rounded-xl border border-blue-100 dark:border-blue-500/20 mt-4">
-                <div className="flex items-start space-x-3">
-                  <ShieldCheck className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
-                  <p className="text-xs text-blue-800 dark:text-blue-300">
-                    This operation will generate a cryptographic hash of the asset data and submit it as an anchor transaction to the EVM smart contract.
-                  </p>
+            {createdAssetId ? (
+              <div className="text-center space-y-4">
+                <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-2 text-emerald-500">
+                  <CheckCircle2 className="w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white">Asset Created Successfully</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Your digital asset has been securely registered.</p>
+                
+                <div className="bg-slate-50 dark:bg-[#0d0d0f] rounded-xl p-4 border border-slate-200 dark:border-white/10 mt-6">
+                  <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-1.5">Asset ID</p>
+                  <div className="flex items-center justify-between">
+                    <p className="font-mono text-lg font-bold text-slate-900 dark:text-white">{createdAssetId}</p>
+                    <button 
+                      onClick={() => handleCopy(createdAssetId, 'createdAssetId')}
+                      className="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-slate-600 dark:text-slate-300 shadow-sm flex items-center space-x-2"
+                    >
+                      {copiedHash === 'createdAssetId' ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                      <span className="text-xs font-semibold">{copiedHash === 'createdAssetId' ? 'Copied' : 'Copy'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pt-6">
+                  <button
+                    onClick={() => { setShowModal(false); setCreatedAssetId(null); }}
+                    className="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium transition-colors shadow-sm"
+                  >
+                    Done
+                  </button>
                 </div>
               </div>
+            ) : (
+              <>
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">Register Digital Asset</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Create a new digital asset in the registry.</p>
+                
+                <form onSubmit={handleRegister} className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Owner User ID</label>
+                    <input
+                      type="number"
+                      required
+                      disabled={isSubmitting}
+                      value={form.userId}
+                      onChange={(e) => setForm({ ...form, userId: e.target.value })}
+                      className="w-full bg-slate-50 dark:bg-[#0d0d0f] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all disabled:opacity-50"
+                      placeholder="e.g. 5"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Asset Name / Title</label>
+                    <input
+                      type="text"
+                      required
+                      disabled={isSubmitting}
+                      value={form.assetName}
+                      onChange={(e) => setForm({ ...form, assetName: e.target.value })}
+                      className="w-full bg-slate-50 dark:bg-[#0d0d0f] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all disabled:opacity-50"
+                      placeholder="Enterprise IP Deed #109"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Description (Optional)</label>
+                    <textarea
+                      disabled={isSubmitting}
+                      value={form.assetDescription}
+                      onChange={(e) => setForm({ ...form, assetDescription: e.target.value })}
+                      className="w-full bg-slate-50 dark:bg-[#0d0d0f] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all disabled:opacity-50 resize-none h-20"
+                      placeholder="Detailed description of the asset..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Asset Type</label>
+                    <select
+                      required
+                      disabled={isSubmitting}
+                      value={form.assetType}
+                      onChange={(e) => setForm({ ...form, assetType: e.target.value })}
+                      className="w-full bg-slate-50 dark:bg-[#0d0d0f] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all disabled:opacity-50"
+                    >
+                      <option value="IntellectualProperty">Intellectual Property</option>
+                      <option value="FinancialInstrument">Financial Instrument</option>
+                      <option value="DigitalIP">Digital IP</option>
+                      <option value="IdentityRecord">Identity Record</option>
+                      <option value="Certificate">Certificate</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Digital File</label>
+                    <div className="flex items-center space-x-3">
+                      <label className="flex-1 cursor-pointer bg-slate-50 dark:bg-[#0d0d0f] border border-slate-200 dark:border-white/10 border-dashed rounded-xl px-4 py-4 text-center hover:bg-slate-100 dark:hover:bg-white/5 transition-colors group">
+                        <input
+                          type="file"
+                          className="hidden"
+                          onChange={handleFileChange}
+                          accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
+                          disabled={isSubmitting}
+                        />
+                        <span className="text-sm font-medium text-slate-600 dark:text-slate-300 group-hover:text-blue-500 transition-colors">
+                          {selectedFile ? selectedFile.name : "Click to select a file"}
+                        </span>
+                        {!selectedFile && (
+                          <span className="block text-[10px] text-slate-400 mt-1 uppercase tracking-wider">
+                            JPG, PNG, PDF, DOC (Max 10MB)
+                          </span>
+                        )}
+                      </label>
+                      {selectedFile && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedFile(null)}
+                          className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                          title="Remove File"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
 
-              <div className="flex justify-end space-x-3 pt-4">
-                <button
-                  type="button"
-                  disabled={isSubmitting}
-                  onClick={() => setShowModal(false)}
-                  className="px-4 py-2.5 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium transition-colors shadow-sm disabled:opacity-50 flex items-center space-x-2"
-                >
-                  {isSubmitting ? "Submitting..." : "Register & Anchor"}
-                </button>
-              </div>
-            </form>
+                  <AssetMetadataEditor metadata={metadata} onChange={setMetadata} />
+                  
+                  <div className="flex justify-end space-x-3 pt-4">
+                    <button
+                      type="button"
+                      disabled={isSubmitting}
+                      onClick={() => setShowModal(false)}
+                      className="px-4 py-2.5 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium transition-colors shadow-sm disabled:opacity-50 flex items-center space-x-2"
+                    >
+                      {isSubmitting ? "Uploading..." : "Register Asset"}
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -389,6 +622,19 @@ export function AssetsPage() {
                   <h4 className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold mb-1">Asset Name</h4>
                   <p className="text-lg font-bold text-slate-900 dark:text-white">{selectedAssetDetails.assetName}</p>
                 </div>
+                
+                {(selectedAssetDetails.id || selectedAssetDetails.assetId) && (
+                  <div>
+                    <h4 className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold mb-1">Asset ID</h4>
+                    <div className="flex items-center justify-between bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl p-3">
+                      <p className="font-mono text-sm font-bold text-slate-900 dark:text-white">{selectedAssetDetails.assetId || selectedAssetDetails.id}</p>
+                      <button onClick={() => handleCopy(String(selectedAssetDetails.assetId || selectedAssetDetails.id), 'id')} className="text-slate-400 hover:text-slate-600 dark:hover:text-white">
+                        {copiedHash === 'id' ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <h4 className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold mb-1">Type</h4>
@@ -411,12 +657,52 @@ export function AssetsPage() {
                 </div>
               </div>
 
-              {/* Cryptographic Proof */}
+              {/* File and Storage Information */}
+              <div className="space-y-4 pt-6 border-t border-slate-200 dark:border-white/5">
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-2">Storage Information</h4>
+                
+                {selectedAssetDetails.fileName && (
+                  <div className="mb-4">
+                    <FilePreview
+                      fileName={selectedAssetDetails.fileName}
+                      fileFormat={selectedAssetDetails.fileFormat}
+                      className="w-full h-32"
+                    />
+                  </div>
+                )}
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h5 className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold mb-1">File Name</h5>
+                    <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{selectedAssetDetails.fileName || "-"}</p>
+                  </div>
+                  <div>
+                    <h5 className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold mb-1">Format</h5>
+                    <p className="text-sm font-medium text-slate-900 dark:text-white">{selectedAssetDetails.fileFormat || "-"}</p>
+                  </div>
+                </div>
+              </div>
+
+              {selectedAssetDetails.customMetadata && selectedAssetDetails.customMetadata.length > 0 && (
+                <div className="space-y-3 pt-6 border-t border-slate-200 dark:border-white/5">
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">Custom Metadata</h4>
+                  <div className="bg-slate-50 dark:bg-white/5 rounded-xl p-4 border border-slate-200 dark:border-white/10 space-y-2">
+                    {selectedAssetDetails.customMetadata.map((meta: any, idx: number) => (
+                      <div key={idx} className="flex justify-between items-center text-sm">
+                        <span className="text-slate-500 dark:text-slate-400 font-medium">{meta.key}:</span>
+                        <span className="text-slate-900 dark:text-white font-semibold text-right">{meta.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Verification Data / Cryptographic Proof */}
               <div className="space-y-4 pt-6 border-t border-slate-200 dark:border-white/5">
                 <div className="flex items-center justify-between mb-4">
                   <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center space-x-2">
                     <ShieldCheck className="w-4 h-4 text-blue-500" />
-                    <span>Cryptographic Anchors</span>
+                    <span>Verification Data</span>
                   </h4>
                   <button
                     onClick={() => setProofModal({ isOpen: true, id: selectedAssetDetails.id })}
@@ -428,10 +714,25 @@ export function AssetsPage() {
                 </div>
                 
                 <div>
-                  <h4 className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-1.5">Asset Hash (SHA-256)</h4>
+                  <h4 className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-1.5">Asset Validation Payload</h4>
+                  <div className="bg-slate-900 rounded-xl p-3 border border-slate-800 overflow-x-auto shadow-inner">
+                    <pre className="text-[10px] sm:text-xs text-emerald-400 font-mono break-all whitespace-pre-wrap">
+{JSON.stringify({
+  id: selectedAssetDetails.assetId || selectedAssetDetails.id,
+  owner: `User #${selectedAssetDetails.userId}`,
+  assetType: selectedAssetDetails.assetType,
+  timestamp: selectedAssetDetails.createdAt,
+  metadata: selectedAssetDetails.customMetadata || []
+}, null, 2)}
+                    </pre>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-1.5">Verification Hash (SHA-256)</h4>
                   <div className="bg-slate-50 dark:bg-[#1a1a1f] p-3.5 rounded-xl border border-slate-200 dark:border-white/10 flex items-center justify-between group">
                     <p className="font-mono text-xs text-slate-700 dark:text-slate-300 truncate mr-3">{selectedAssetDetails.assetHash}</p>
-                    <button onClick={() => handleCopy(selectedAssetDetails.assetHash, 'hash')} className="text-slate-400 hover:text-slate-600 dark:hover:text-white">
+                    <button onClick={() => handleCopy(selectedAssetDetails.assetHash, 'hash')} className="text-slate-400 hover:text-slate-600 dark:hover:text-white shrink-0">
                       {copiedHash === 'hash' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
                   </div>
@@ -441,7 +742,7 @@ export function AssetsPage() {
                   <h4 className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-1.5">Blockchain Transaction Hash</h4>
                   <div className="bg-slate-50 dark:bg-[#1a1a1f] p-3.5 rounded-xl border border-slate-200 dark:border-white/10 flex items-center justify-between group">
                     <p className="font-mono text-xs text-blue-600 dark:text-blue-400 truncate mr-3">{selectedAssetDetails.blockchainTxHash}</p>
-                    <button onClick={() => handleCopy(selectedAssetDetails.blockchainTxHash, 'tx')} className="text-slate-400 hover:text-slate-600 dark:hover:text-white">
+                    <button onClick={() => handleCopy(selectedAssetDetails.blockchainTxHash, 'tx')} className="text-slate-400 hover:text-slate-600 dark:hover:text-white shrink-0">
                       {copiedHash === 'tx' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
                   </div>

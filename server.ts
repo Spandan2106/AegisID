@@ -1,3 +1,5 @@
+import multer from "multer";
+const upload = multer({ storage: multer.memoryStorage() });
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
@@ -147,6 +149,7 @@ async function startServer() {
     assets: [
       {
         id: 1,
+        assetId: "AST-2026-F981CBA2",
         userId: 5,
         assetName: "Secure Enterprise IP Certificate #402",
         assetType: "IntellectualProperty",
@@ -243,7 +246,7 @@ async function startServer() {
   // ==========================================
   app.post("/api/auth/login", (req, res) => {
     const { username, password } = req.body;
-    const user = db.users.find(u => u.username === username || u.email === username);
+    const user: any = db.users.find(u => u.username === username || u.email === username);
     if (!user || (user.password && user.password !== password) || (!user.password && password !== "password")) {
       logAudit(username || "unknown", "LOGIN", "USER", "0", "FAILED", req.ip);
       return res.status(401).json({ success: false, error: "UNAUTHORIZED", message: "Invalid username or password" });
@@ -620,29 +623,50 @@ async function startServer() {
   });
 
   app.get("/api/assets/:id", (req, res) => {
-    const asset = db.assets.find(a => a.id === Number(req.params.id));
+    const idParam = req.params.id;
+    const asset = db.assets.find(a => a.id === Number(idParam) || a.assetId === idParam);
     if (!asset) return res.status(404).json({ success: false, error: "NOT_FOUND", message: "Asset not found" });
     res.json({ success: true, data: asset });
   });
 
-  app.post("/api/assets", (req, res) => {
-    const { userId, assetName, assetType, ownerAddress } = req.body;
+  app.post("/api/assets/upload", upload.single("file"), (req, res) => {
+    const { userId, assetName, assetType, ownerAddress, customMetadata } = req.body;
     if (!userId || !assetName) {
       return res.status(400).json({ success: false, error: "BAD_REQUEST", message: "userId and assetName are required" });
     }
     
+    let fileName = null;
+    if (req.file) {
+      fileName = req.file.originalname;
+    }
+
     const assetHash = "0x" + Array.from({length: 64}, () => Math.floor(Math.random()*16).toString(16)).join("");
     const txHash = "0x" + Array.from({length: 64}, () => Math.floor(Math.random()*16).toString(16)).join("");
     
+    // Auto-detect format from fileName if provided
+    let fileFormat = null;
+    if (fileName) {
+      const parts = fileName.split(".");
+      if (parts.length > 1) {
+        fileFormat = parts[parts.length - 1].toUpperCase();
+      }
+    }
+    
     const newAsset = {
       id: db.assets.length + 1,
+      assetId: `AST-${new Date().getFullYear()}-${Array.from({length: 8}, () => Math.floor(Math.random()*16).toString(16).toUpperCase()).join("")}`,
       userId: Number(userId),
       assetName,
-      assetType: assetType || "DigitalIP",
+      assetType: assetType || "IntellectualProperty",
       assetHash,
       ownerAddress: ownerAddress || "0x71C359918E7E91c667104b90C5b0C627c54143a5",
       status: "ACTIVE",
       blockchainTxHash: txHash,
+      fileName: fileName || null,
+      fileFormat: fileFormat,
+      storageFolder: fileName ? `/storage/assets/user-${userId}/` : null,
+      storageAddress: fileName ? "ipfs://Qm" + Array.from({length: 44}, () => Math.floor(Math.random()*16).toString(16)).join("") : null,
+      customMetadata: customMetadata || [],
       createdAt: new Date().toISOString()
     };
     
@@ -685,6 +709,19 @@ async function startServer() {
     } else {
       return res.status(400).json({ success: false, error: "BAD_REQUEST", message: "Invalid action" });
     }
+    
+    const txHash = "0x" + Array.from({length: 64}, () => Math.floor(Math.random()*16).toString(16)).join("");
+    db.blockchainTransactions.unshift({
+      id: db.blockchainTransactions.length + 1,
+      transactionHash: txHash,
+      entityType: "ASSET",
+      entityId: String(id),
+      blockchainOperation: `${action.toUpperCase()}_ASSET`,
+      status: "SUCCESS",
+      blockNumber: 142870 + db.blockchainTransactions.length,
+      timestamp: new Date().toISOString(),
+      errorMessage: null
+    });
     
     saveDb();
     logAudit("admin", `ASSET_${action.toUpperCase()}`, "ASSET", String(id), "SUCCESS", req.ip);

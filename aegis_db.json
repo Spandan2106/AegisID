@@ -78,6 +78,20 @@
       "role": "USER",
       "createdAt": "2026-09-04T17:29:53.090Z",
       "updatedAt": "2026-09-04T17:29:53.090Z"
+    },
+    {
+      "id": 7,
+      "organizationId": 1,
+      "departmentId": 1,
+      "employeeCode": "EMP-16",
+      "username": "so",
+      "email": "soumyajitsaha.miit@gmail.com",
+      "fullName": "Soumyajit",
+      "password": "soumya1",
+      "status": "ACTIVE",
+      "role": "USER",
+      "createdAt": "2026-09-05T19:26:26.486Z",
+      "updatedAt": "2026-09-05T19:26:26.486Z"
     }
   ],
   "organizations": [
@@ -322,6 +336,17 @@
       "identityHash": "0xa1b2c3d4e5f67890123456789abcdef0123456789abcdef0123456789abcdef0",
       "createdAt": "2026-09-04T17:28:24.562Z",
       "updatedAt": "2026-09-04T17:28:24.562Z"
+    },
+    {
+      "id": 2,
+      "userId": 6,
+      "did": "did:aegis:user:6:3ukx82b",
+      "walletAddress": "0x71C359918E7E91c667104b90C5b0C627c54143a5",
+      "verificationStatus": "VERIFIED",
+      "identityStatus": "ACTIVE",
+      "identityHash": "0x761b675f92e9486266fc75ad5ee54d69388ed302832566fc9a87e862a0c93235",
+      "createdAt": "2026-09-05T16:19:08.732Z",
+      "updatedAt": "2026-09-05T16:19:08.732Z"
     }
   ],
   "credentials": [
@@ -340,17 +365,240 @@
   "assets": [
     {
       "id": 1,
-      "userId": 5,
-      "assetName": "Secure Enterprise IP Certificate #402",
+      "assetId": "AST-2026-5583BDB8",
+      "userId": 6,
+      "assetName": "Deed#1",
       "assetType": "IntellectualProperty",
-      "assetHash": "0xc3d4e5f6a1b27890123456789abcdef0123456789abcdef0123456789abcdef2",
+      "assetHash": "0x3297c83aa5f76345587624756a31d9a2add6b312bfc762883494fa221216baa8",
       "ownerAddress": "0x71C359918E7E91c667104b90C5b0C627c54143a5",
       "status": "ACTIVE",
-      "blockchainTxHash": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
-      "createdAt": "2026-09-04T17:28:24.563Z"
+      "blockchainTxHash": "0xb0524add82e4ee9c4eb3c8a7efbd887c052451c96685ab6713f88a38e6b6ec0e",
+      "fileName": "Sequence (1).png",
+      "fileFormat": "PNG",
+      "storageFolder": "/storage/assets/user-6/",
+      "storageAddress": "ipfs://Qmcb4b11542e9ce56a22aedc1e39274bbc8cc6b54c55da",
+      "customMetadata": [],
+      "createdAt": "2026-09-05T17:27:43.867Z"
+    },
+    {
+      "id": 2,
+      "assetId": "AST-2026-DD8BB902",
+      "userId": 6,
+      "assetName": "Deed#7",
+      "assetType": "DigitalIP",
+      "assetHash": "0xc8c9cfb21a029676dbb6687626326e2596ccc92b28429a6a8871eaa865ee3fc7",
+      "ownerAddress": "0x71C359918E7E91c667104b90C5b0C627c54143a5",
+      "status": "ACTIVE",
+      "blockchainTxHash": "0x94072d24cfc01a158289fb066b3a8c33a5ca9ce1bd0d2c13a36c50c27a99dbbb",
+      "fileName": "Sequence (1).png",
+      "fileFormat": "PNG",
+      "storageFolder": "/storage/assets/user-6/",
+      "storageAddress": "ipfs://Qmbcbfc184e50a98622f3571eb3c1620bd6bd34c9fce47",
+      "customMetadata": [],
+      "createdAt": "2026-09-05T18:50:41.966Z"
+    },
+    {
+      "id": 3,
+      "assetId": "AST-2026-08A1046E",
+      "userId": 6,
+      "assetName": "Deed#2",
+      "assetType": "DigitalIP",
+      "assetHash": "0x2e7d529634aad283d6d0fc08e7c2663da0311db0b47caf74287485e2c89d051f",
+      "ownerAddress": "0x71C359918E7E91c667104b90C5b0C627c54143a5",
+      "status": "ACTIVE",
+      "blockchainTxHash": "0x3fce77c77de2c72c55a23e0eccedbdccd93c09dc50afc70fc3fa3448e1bd6d71",
+      "fileName": "Sequence.png",
+      "fileFormat": "PNG",
+      "storageFolder": "/storage/assets/user-6/",
+      "storageAddress": "ipfs://Qmf65f36bc6f81b19bacacf797a19e1a07a9b54282ef18",
+      "customMetadata": [],
+      "createdAt": "2026-09-05T19:25:18.912Z"
+    },
+    {
+      "id": 4,
+      "assetId": "AST-2026-13A9655A",
+      "userId": 6,
+      "assetName": "Deed#9",
+      "assetType": "DigitalIP",
+      "assetHash": "0x05eb059c4acd87b4607b074caaf076788e0552631dd8f9fc37cdcd1a240bf0bb",
+      "ownerAddress": "0x71C359918E7E91c667104b90C5b0C627c54143a5",
+      "status": "ACTIVE",
+      "blockchainTxHash": "0xb22a3a2de55044a5a28ab7e1f775613cda94d36e90df487dc28de383ed4be0e3",
+      "fileName": "Architecture (1).png",
+      "fileFormat": "PNG",
+      "storageFolder": "/storage/assets/user-6/",
+      "storageAddress": "ipfs://Qm6f10475f64a5a10ea56e27ed012eb377e74918a6d03c",
+      "customMetadata": [],
+      "createdAt": "2026-09-05T19:46:11.671Z"
+    },
+    {
+      "id": 5,
+      "assetId": "AST-2026-07F45633",
+      "userId": 6,
+      "assetName": "Deed#10",
+      "assetType": "DigitalIP",
+      "assetHash": "0xa00ea70844294d707020755e48e7267413fad699964c88370b11102b21d45baa",
+      "ownerAddress": "0x71C359918E7E91c667104b90C5b0C627c54143a5",
+      "status": "ACTIVE",
+      "blockchainTxHash": "0x977ab9f63fc554b3dff48b5d712f348deb2d19712eb0104d178d03d97df9efae",
+      "fileName": "Sequence.png",
+      "fileFormat": "PNG",
+      "storageFolder": "/storage/assets/user-6/",
+      "storageAddress": "ipfs://Qm2621e0545d591efc531877e6c7c9ac5e2e28c937ab8c",
+      "customMetadata": [],
+      "createdAt": "2026-09-05T19:53:17.922Z"
+    },
+    {
+      "id": 6,
+      "assetId": "AST-2026-FA2CB455",
+      "userId": 6,
+      "assetName": "Deed#11",
+      "assetType": "DigitalIP",
+      "assetHash": "0x5ac814e918ac493024f834db9b56fd22df1690957b657936aaf62f43dfeba7d3",
+      "ownerAddress": "0x71C359918E7E91c667104b90C5b0C627c54143a5",
+      "status": "ACTIVE",
+      "blockchainTxHash": "0xbf7d5f3286c9ab1db8a8c6cef24565697c0fbe21d879094414434ab5a315b890",
+      "fileName": "Thermodynamics_and_Thermochemistry__Kattar_NEET_2026__Physical.pdf",
+      "fileFormat": "PDF",
+      "storageFolder": "/storage/assets/user-6/",
+      "storageAddress": "ipfs://Qmd0e207898a428c4f2ba531da97e062ec93824c664383",
+      "customMetadata": [],
+      "createdAt": "2026-09-05T20:00:59.411Z"
     }
   ],
   "blockchainTransactions": [
+    {
+      "id": 14,
+      "transactionHash": "0xbf7d5f3286c9ab1db8a8c6cef24565697c0fbe21d879094414434ab5a315b890",
+      "entityType": "ASSET",
+      "entityId": "6",
+      "blockchainOperation": "ANCHOR_ASSET",
+      "status": "SUCCESS",
+      "blockNumber": 142876,
+      "timestamp": "2026-09-05T20:00:59.411Z",
+      "errorMessage": null
+    },
+    {
+      "id": 13,
+      "transactionHash": "0x977ab9f63fc554b3dff48b5d712f348deb2d19712eb0104d178d03d97df9efae",
+      "entityType": "ASSET",
+      "entityId": "5",
+      "blockchainOperation": "ANCHOR_ASSET",
+      "status": "SUCCESS",
+      "blockNumber": 142875,
+      "timestamp": "2026-09-05T19:53:17.922Z",
+      "errorMessage": null
+    },
+    {
+      "id": 12,
+      "transactionHash": "0xb22a3a2de55044a5a28ab7e1f775613cda94d36e90df487dc28de383ed4be0e3",
+      "entityType": "ASSET",
+      "entityId": "4",
+      "blockchainOperation": "ANCHOR_ASSET",
+      "status": "SUCCESS",
+      "blockNumber": 142874,
+      "timestamp": "2026-09-05T19:46:11.671Z",
+      "errorMessage": null
+    },
+    {
+      "id": 11,
+      "transactionHash": "0x3fce77c77de2c72c55a23e0eccedbdccd93c09dc50afc70fc3fa3448e1bd6d71",
+      "entityType": "ASSET",
+      "entityId": "3",
+      "blockchainOperation": "ANCHOR_ASSET",
+      "status": "SUCCESS",
+      "blockNumber": 142873,
+      "timestamp": "2026-09-05T19:25:18.914Z",
+      "errorMessage": null
+    },
+    {
+      "id": 10,
+      "transactionHash": "0x94072d24cfc01a158289fb066b3a8c33a5ca9ce1bd0d2c13a36c50c27a99dbbb",
+      "entityType": "ASSET",
+      "entityId": "2",
+      "blockchainOperation": "ANCHOR_ASSET",
+      "status": "SUCCESS",
+      "blockNumber": 142872,
+      "timestamp": "2026-09-05T18:50:41.966Z",
+      "errorMessage": null
+    },
+    {
+      "id": 9,
+      "transactionHash": "0xb0524add82e4ee9c4eb3c8a7efbd887c052451c96685ab6713f88a38e6b6ec0e",
+      "entityType": "ASSET",
+      "entityId": "1",
+      "blockchainOperation": "ANCHOR_ASSET",
+      "status": "SUCCESS",
+      "blockNumber": 142871,
+      "timestamp": "2026-09-05T17:27:43.868Z",
+      "errorMessage": null
+    },
+    {
+      "id": 8,
+      "transactionHash": "0x7fdc6355adcf900a5e628772110308156f4c59832880c9989556e50a185d9fb5",
+      "entityType": "ASSET",
+      "entityId": "6",
+      "blockchainOperation": "ANCHOR_ASSET",
+      "status": "SUCCESS",
+      "blockNumber": 142876,
+      "timestamp": "2026-09-05T17:12:50.556Z",
+      "errorMessage": null
+    },
+    {
+      "id": 7,
+      "transactionHash": "0xd65d821471d9ccf00c8c3afa2091c5ce12b06a4cc3e836763f49d50ceb606189",
+      "entityType": "ASSET",
+      "entityId": "5",
+      "blockchainOperation": "ANCHOR_ASSET",
+      "status": "SUCCESS",
+      "blockNumber": 142875,
+      "timestamp": "2026-09-05T16:38:54.312Z",
+      "errorMessage": null
+    },
+    {
+      "id": 6,
+      "transactionHash": "0xd7acdc06d41095d3b98da1f6d87e2636a547b9c2b228209a36beede8e932195c",
+      "entityType": "ASSET",
+      "entityId": "4",
+      "blockchainOperation": "ANCHOR_ASSET",
+      "status": "SUCCESS",
+      "blockNumber": 142874,
+      "timestamp": "2026-09-05T16:30:51.717Z",
+      "errorMessage": null
+    },
+    {
+      "id": 5,
+      "transactionHash": "0x924487d79621874ca3873c6232421a4ce0bc740c06efdef09e1b6a1878a462f3",
+      "entityType": "IDENTITY",
+      "entityId": "2",
+      "blockchainOperation": "ANCHOR_IDENTITY",
+      "status": "SUCCESS",
+      "blockNumber": 142856,
+      "timestamp": "2026-09-05T16:19:08.732Z",
+      "errorMessage": null
+    },
+    {
+      "id": 4,
+      "transactionHash": "0x67f8033fc7deb3ff50a18b5900bfdaf71e54c2b03a6ad60b75fcfd43f8c947ed",
+      "entityType": "ASSET",
+      "entityId": "3",
+      "blockchainOperation": "ANCHOR_ASSET",
+      "status": "SUCCESS",
+      "blockNumber": 142873,
+      "timestamp": "2026-09-05T15:37:20.965Z",
+      "errorMessage": null
+    },
+    {
+      "id": 3,
+      "transactionHash": "0xaac6f5182cf4cb6b6d91365cad5d4e679361bf1dde62ec0da0bba2876b911991",
+      "entityType": "ASSET",
+      "entityId": "2",
+      "blockchainOperation": "ANCHOR_ASSET",
+      "status": "SUCCESS",
+      "blockNumber": 142872,
+      "timestamp": "2026-09-05T15:36:06.575Z",
+      "errorMessage": null
+    },
     {
       "id": 1,
       "transactionHash": "0x9876543210abcdef9876543210abcdef9876543210abcdef9876543210abcdef",
@@ -375,6 +623,446 @@
     }
   ],
   "auditLogs": [
+    {
+      "id": 49,
+      "username": "user",
+      "action": "ASSET_CREATED",
+      "entityType": "ASSET",
+      "entityId": "6",
+      "timestamp": "2026-09-05T20:00:59.418Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 48,
+      "username": "user",
+      "action": "ASSET_CREATED",
+      "entityType": "ASSET",
+      "entityId": "5",
+      "timestamp": "2026-09-05T19:53:17.923Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 47,
+      "username": "superadmin",
+      "action": "LOGIN",
+      "entityType": "USER",
+      "entityId": "1",
+      "timestamp": "2026-09-05T19:52:47.674Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 46,
+      "username": "user",
+      "action": "ASSET_CREATED",
+      "entityType": "ASSET",
+      "entityId": "4",
+      "timestamp": "2026-09-05T19:46:11.673Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 45,
+      "username": "superadmin",
+      "action": "LOGIN",
+      "entityType": "USER",
+      "entityId": "1",
+      "timestamp": "2026-09-05T19:45:34.448Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 44,
+      "username": "so",
+      "action": "LOGIN",
+      "entityType": "USER",
+      "entityId": "7",
+      "timestamp": "2026-09-05T19:40:59.075Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 43,
+      "username": "s",
+      "action": "LOGIN",
+      "entityType": "USER",
+      "entityId": "6",
+      "timestamp": "2026-09-05T19:28:01.420Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 42,
+      "username": "so",
+      "action": "LOGIN",
+      "entityType": "USER",
+      "entityId": "7",
+      "timestamp": "2026-09-05T19:27:22.619Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 41,
+      "username": "admin",
+      "action": "USER_CREATE",
+      "entityType": "USER",
+      "entityId": "7",
+      "timestamp": "2026-09-05T19:26:26.489Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 40,
+      "username": "user",
+      "action": "ASSET_CREATED",
+      "entityType": "ASSET",
+      "entityId": "3",
+      "timestamp": "2026-09-05T19:25:18.924Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 39,
+      "username": "user",
+      "action": "ASSET_CREATED",
+      "entityType": "ASSET",
+      "entityId": "2",
+      "timestamp": "2026-09-05T18:50:41.972Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 38,
+      "username": "user",
+      "action": "ASSET_CREATED",
+      "entityType": "ASSET",
+      "entityId": "1",
+      "timestamp": "2026-09-05T17:27:43.871Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 37,
+      "username": "admin",
+      "action": "ASSET_DELETE",
+      "entityType": "ASSET",
+      "entityId": "5",
+      "timestamp": "2026-09-05T17:17:26.214Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 36,
+      "username": "admin",
+      "action": "ASSET_DELETE",
+      "entityType": "ASSET",
+      "entityId": "4",
+      "timestamp": "2026-09-05T17:17:19.473Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 35,
+      "username": "admin",
+      "action": "ASSET_DELETE",
+      "entityType": "ASSET",
+      "entityId": "3",
+      "timestamp": "2026-09-05T17:17:08.888Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 34,
+      "username": "admin",
+      "action": "ASSET_DELETE",
+      "entityType": "ASSET",
+      "entityId": "2",
+      "timestamp": "2026-09-05T17:16:57.881Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 33,
+      "username": "admin",
+      "action": "ASSET_DELETE",
+      "entityType": "ASSET",
+      "entityId": "6",
+      "timestamp": "2026-09-05T17:16:48.401Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 32,
+      "username": "admin",
+      "action": "ASSET_DELETE",
+      "entityType": "ASSET",
+      "entityId": "1",
+      "timestamp": "2026-09-05T17:16:39.039Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 31,
+      "username": "superadmin",
+      "action": "LOGIN",
+      "entityType": "USER",
+      "entityId": "1",
+      "timestamp": "2026-09-05T17:16:28.949Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 30,
+      "username": "s",
+      "action": "LOGIN",
+      "entityType": "USER",
+      "entityId": "6",
+      "timestamp": "2026-09-05T17:13:03.279Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 29,
+      "username": "user",
+      "action": "ASSET_CREATED",
+      "entityType": "ASSET",
+      "entityId": "6",
+      "timestamp": "2026-09-05T17:12:50.558Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 28,
+      "username": "superadmin",
+      "action": "LOGIN",
+      "entityType": "USER",
+      "entityId": "1",
+      "timestamp": "2026-09-05T17:11:24.953Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 27,
+      "username": "s",
+      "action": "LOGIN",
+      "entityType": "USER",
+      "entityId": "6",
+      "timestamp": "2026-09-05T17:08:59.773Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 26,
+      "username": "verifier",
+      "action": "LOGIN",
+      "entityType": "USER",
+      "entityId": "4",
+      "timestamp": "2026-09-05T17:01:35.296Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 25,
+      "username": "superadmin",
+      "action": "LOGIN",
+      "entityType": "USER",
+      "entityId": "1",
+      "timestamp": "2026-09-05T17:01:25.854Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 24,
+      "username": "issuer",
+      "action": "LOGIN",
+      "entityType": "USER",
+      "entityId": "3",
+      "timestamp": "2026-09-05T17:01:14.408Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 23,
+      "username": "admin",
+      "action": "LOGIN",
+      "entityType": "USER",
+      "entityId": "2",
+      "timestamp": "2026-09-05T17:00:52.900Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 22,
+      "username": "superadmin",
+      "action": "LOGIN",
+      "entityType": "USER",
+      "entityId": "1",
+      "timestamp": "2026-09-05T16:59:13.224Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 21,
+      "username": "s",
+      "action": "LOGIN",
+      "entityType": "USER",
+      "entityId": "6",
+      "timestamp": "2026-09-05T16:47:39.388Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 20,
+      "username": "user",
+      "action": "ASSET_CREATED",
+      "entityType": "ASSET",
+      "entityId": "5",
+      "timestamp": "2026-09-05T16:38:54.313Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 19,
+      "username": "superadmin",
+      "action": "LOGIN",
+      "entityType": "USER",
+      "entityId": "1",
+      "timestamp": "2026-09-05T16:38:16.890Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 18,
+      "username": "s",
+      "action": "LOGIN",
+      "entityType": "USER",
+      "entityId": "6",
+      "timestamp": "2026-09-05T16:35:00.503Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 17,
+      "username": "admin",
+      "action": "ASSET_TRANSFER",
+      "entityType": "ASSET",
+      "entityId": "2",
+      "timestamp": "2026-09-05T16:34:41.771Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 16,
+      "username": "user",
+      "action": "ASSET_CREATED",
+      "entityType": "ASSET",
+      "entityId": "4",
+      "timestamp": "2026-09-05T16:30:51.727Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 15,
+      "username": "admin",
+      "action": "IDENTITY_CREATED",
+      "entityType": "IDENTITY",
+      "entityId": "2",
+      "timestamp": "2026-09-05T16:19:08.734Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 14,
+      "username": "superadmin",
+      "action": "LOGIN",
+      "entityType": "USER",
+      "entityId": "1",
+      "timestamp": "2026-09-05T16:16:48.599Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 13,
+      "username": "s",
+      "action": "LOGIN",
+      "entityType": "USER",
+      "entityId": "6",
+      "timestamp": "2026-09-05T16:15:49.056Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 12,
+      "username": "superadmin",
+      "action": "LOGIN",
+      "entityType": "USER",
+      "entityId": "1",
+      "timestamp": "2026-09-05T15:51:33.492Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 11,
+      "username": "s",
+      "action": "LOGIN",
+      "entityType": "USER",
+      "entityId": "6",
+      "timestamp": "2026-09-05T15:40:35.600Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 10,
+      "username": "s",
+      "action": "LOGIN",
+      "entityType": "USER",
+      "entityId": "0",
+      "timestamp": "2026-09-05T15:40:25.948Z",
+      "result": "FAILED",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 9,
+      "username": "s",
+      "action": "LOGIN",
+      "entityType": "USER",
+      "entityId": "6",
+      "timestamp": "2026-09-05T15:40:08.916Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 8,
+      "username": "s",
+      "action": "LOGIN",
+      "entityType": "USER",
+      "entityId": "6",
+      "timestamp": "2026-09-05T15:38:45.046Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 7,
+      "username": "user",
+      "action": "ASSET_CREATED",
+      "entityType": "ASSET",
+      "entityId": "3",
+      "timestamp": "2026-09-05T15:37:20.967Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
+    {
+      "id": 6,
+      "username": "user",
+      "action": "ASSET_CREATED",
+      "entityType": "ASSET",
+      "entityId": "2",
+      "timestamp": "2026-09-05T15:36:06.580Z",
+      "result": "SUCCESS",
+      "ipAddress": "127.0.0.1"
+    },
     {
       "id": 5,
       "username": "s",

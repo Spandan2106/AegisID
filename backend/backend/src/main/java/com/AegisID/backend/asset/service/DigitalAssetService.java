@@ -2,500 +2,503 @@ package com.AegisID.backend.asset.service;
 
 import com.AegisID.backend.asset.entity.DigitalAsset;
 import com.AegisID.backend.asset.repsitory.DigitalAssetRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.nio.charset.StandardCharsets;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.*;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Service
-@Transactional
 public class DigitalAssetService {
 
     private final DigitalAssetRepository assetRepository;
 
-    public DigitalAssetService(
-            DigitalAssetRepository assetRepository) {
+    @Value("${aegisid.storage.asset-directory:./assets}")
+    private String assetDirectory;
+
+
+    public DigitalAssetService(DigitalAssetRepository assetRepository) {
         this.assetRepository = assetRepository;
     }
 
-    // =========================================================
-    // CREATE ASSET
-    // =========================================================
 
+    @Transactional
     public DigitalAsset createAsset(
             String assetName,
             String assetType,
             String description,
-            Long ownerId) {
+            Long ownerId,
+            MultipartFile file
+    ) throws IOException {
 
-        validateAssetName(assetName);
-        validateAssetType(assetType);
-        validateOwnerId(ownerId);
+        // ----------------------------------------
+        // 1. Validate input
+        // ----------------------------------------
 
-        DigitalAsset asset = new DigitalAsset();
-
-        asset.setAssetName(assetName.trim());
-        asset.setAssetType(assetType.trim());
-
-        if (description != null) {
-            asset.setDescription(description.trim());
+        if (assetName == null || assetName.isBlank()) {
+            throw new IllegalArgumentException("Asset name is required");
         }
 
-        asset.setOwnerId(ownerId);
+        if (assetType == null || assetType.isBlank()) {
+            throw new IllegalArgumentException("Asset type is required");
+        }
 
-        /*
-         * Generate deterministic SHA-256 hash from the
-         * important asset information.
-         */
-        String assetHash = generateAssetHash(
-                assetName,
-                assetType,
-                description,
-                ownerId
-        );
+        if (ownerId == null) {
+            throw new IllegalArgumentException("Owner ID is required");
+        }
 
-        // Prevent accidental duplicate asset hash
-        if (assetRepository.existsByAssetHash(assetHash)) {
-            throw new IllegalStateException(
-                    "Asset with the same data already exists"
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Asset file is required");
+        }
+
+
+        // ----------------------------------------
+        // 2. Generate unique Asset ID
+        // ----------------------------------------
+
+        String assetId = generateAssetId();
+
+
+        // ----------------------------------------
+        // 3. Get safe original filename
+        // ----------------------------------------
+
+        String originalFileName =
+                sanitizeFileName(file.getOriginalFilename());
+
+
+        // ----------------------------------------
+        // 4. Get file extension
+        // ----------------------------------------
+
+        String fileFormat =
+                getFileExtension(originalFileName);
+
+
+        // ----------------------------------------
+        // 5. Create storage root
+        // ----------------------------------------
+
+        Path rootPath = Paths
+                .get(assetDirectory)
+                .toAbsolutePath()
+                .normalize();
+
+        Files.createDirectories(rootPath);
+
+
+        // ----------------------------------------
+        // 6. Create unique asset directory
+        // ----------------------------------------
+
+        Path assetFolder = rootPath
+                .resolve(assetId)
+                .normalize();
+
+
+        if (!assetFolder.startsWith(rootPath)) {
+            throw new SecurityException("Invalid asset directory");
+        }
+
+
+        Files.createDirectories(assetFolder);
+
+
+        // ----------------------------------------
+        // 7. Generate unique stored filename
+        // ----------------------------------------
+
+        String storedFileName = assetId;
+
+        if (!fileFormat.isEmpty()) {
+            storedFileName += "." + fileFormat;
+        }
+
+
+        // ----------------------------------------
+        // 8. Create final file path
+        // ----------------------------------------
+
+        Path targetFile = assetFolder
+                .resolve(storedFileName)
+                .normalize();
+
+
+        if (!targetFile.startsWith(assetFolder)) {
+            throw new SecurityException("Invalid file path");
+        }
+
+
+        // ----------------------------------------
+        // 9. Save actual uploaded file
+        // ----------------------------------------
+
+        try {
+
+            try (InputStream inputStream = file.getInputStream()) {
+
+                Files.copy(
+                        inputStream,
+                        targetFile,
+                        StandardCopyOption.REPLACE_EXISTING
+                );
+            }
+
+
+            // ----------------------------------------
+            // 10. Calculate SHA-256
+            // ----------------------------------------
+
+            String assetHash =
+                    calculateSha256(targetFile);
+
+
+            // ----------------------------------------
+            // 11. Prepare database entity
+            // ----------------------------------------
+
+            DigitalAsset asset = new DigitalAsset();
+
+            asset.setAssetId(assetId);
+            asset.setAssetName(assetName);
+            asset.setAssetType(assetType);
+            asset.setDescription(description);
+            asset.setOwnerId(ownerId);
+
+            asset.setAssetHash(assetHash);
+
+            asset.setOriginalFileName(originalFileName);
+            asset.setStoredFileName(storedFileName);
+
+            asset.setFileFormat(
+                    fileFormat.isEmpty()
+                            ? null
+                            : fileFormat.toUpperCase()
             );
+
+            asset.setContentType(file.getContentType());
+            asset.setFileSize(file.getSize());
+
+
+            // ----------------------------------------
+            // 12. Save relative storage paths
+            // ----------------------------------------
+
+            String relativeFolder =
+                    "assets/" + assetId + "/";
+
+            String relativePath =
+                    relativeFolder + storedFileName;
+
+
+            asset.setStorageFolder(relativeFolder);
+            asset.setStoragePath(relativePath);
+
+
+            // ----------------------------------------
+            // 13. Correct DB status
+            // ----------------------------------------
+
+            asset.setStatus("ACTIVE");
+
+
+            // ----------------------------------------
+            // 14. Save metadata to MySQL
+            // ----------------------------------------
+
+            return assetRepository.save(asset);
+
+        } catch (Exception e) {
+
+            // ----------------------------------------
+            // 15. Cleanup file if DB save fails
+            // ----------------------------------------
+
+            try {
+
+                if (Files.exists(assetFolder)) {
+
+                    Files.walk(assetFolder)
+                            .sorted((a, b) ->
+                                    b.compareTo(a))
+                            .forEach(path -> {
+
+                                try {
+                                    Files.deleteIfExists(path);
+                                } catch (IOException ignored) {
+                                }
+
+                            });
+                }
+
+            } catch (IOException ignored) {
+            }
+
+
+            throw e;
         }
-
-        asset.setAssetHash(assetHash);
-        asset.setStatus(DigitalAsset.AssetStatus.ACTIVE);
-
-        return assetRepository.save(asset);
     }
 
-    // =========================================================
-    // GET ALL ASSETS
-    // =========================================================
 
-    @Transactional(readOnly = true)
+    // ----------------------------------------
+    // Get all assets
+    // ----------------------------------------
+
     public List<DigitalAsset> getAllAssets() {
+
         return assetRepository.findAll();
     }
 
-    // =========================================================
-    // GET ASSET BY ID
-    // =========================================================
 
-    @Transactional(readOnly = true)
-    public DigitalAsset getAssetById(Long id) {
+    // ----------------------------------------
+    // Get asset by Asset ID
+    // ----------------------------------------
 
-        return assetRepository.findById(id)
-                .orElseThrow(() ->
-                        new RuntimeException(
-                                "Digital asset not found with id: " + id
-                        )
-                );
-    }
-
-    // =========================================================
-    // GET ASSET BY HASH
-    // =========================================================
-
-    @Transactional(readOnly = true)
-    public DigitalAsset getAssetByHash(String assetHash) {
-
-        if (assetHash == null || assetHash.isBlank()) {
-            throw new IllegalArgumentException(
-                    "Asset hash cannot be empty"
-            );
-        }
+    public DigitalAsset getByAssetId(String assetId) {
 
         return assetRepository
-                .findByAssetHash(
-                        normalizeHash(assetHash)
-                )
+                .findByAssetId(assetId)
                 .orElseThrow(() ->
                         new RuntimeException(
-                                "Digital asset not found with hash: "
-                                        + assetHash
+                                "Asset not found: " + assetId
                         )
                 );
     }
 
-    // =========================================================
-    // GET ASSETS BY OWNER
-    // =========================================================
 
-    @Transactional(readOnly = true)
-    public List<DigitalAsset> getAssetsByOwner(Long ownerId) {
+    // ----------------------------------------
+    // Get assets by owner
+    // ----------------------------------------
 
-        validateOwnerId(ownerId);
+    public List<DigitalAsset> getByOwnerId(Long ownerId) {
 
         return assetRepository.findByOwnerId(ownerId);
     }
 
-    // =========================================================
-    // GET ASSETS BY STATUS
-    // =========================================================
 
-    @Transactional(readOnly = true)
-    public List<DigitalAsset> getAssetsByStatus(
-            DigitalAsset.AssetStatus status) {
+    // ----------------------------------------
+    // Get physical file
+    // ----------------------------------------
 
-        if (status == null) {
-            throw new IllegalArgumentException(
-                    "Asset status cannot be null"
+    public Path getAssetFile(String assetId) {
+
+        DigitalAsset asset =
+                getByAssetId(assetId);
+
+
+        Path rootPath = Paths
+                .get(assetDirectory)
+                .toAbsolutePath()
+                .normalize();
+
+
+        Path assetFolder = rootPath
+                .resolve(asset.getAssetId())
+                .normalize();
+
+
+        Path filePath = assetFolder
+                .resolve(asset.getStoredFileName())
+                .normalize();
+
+
+        if (!filePath.startsWith(assetFolder)) {
+            throw new SecurityException(
+                    "Invalid asset path"
             );
         }
 
-        return assetRepository.findByStatus(status);
+
+        if (!Files.exists(filePath)
+                || !Files.isRegularFile(filePath)) {
+
+            throw new RuntimeException(
+                    "Stored asset file not found"
+            );
+        }
+
+
+        return filePath;
     }
 
-    // =========================================================
-    // UPDATE ASSET
-    // =========================================================
 
-    public DigitalAsset updateAsset(
-            Long id,
-            String assetName,
-            String assetType,
-            String description) {
+    // ----------------------------------------
+    // Verify file integrity
+    // ----------------------------------------
 
-        DigitalAsset asset = getAssetById(id);
+    public boolean verifyAsset(String assetId) {
 
-        if (asset.getStatus() ==
-                DigitalAsset.AssetStatus.REVOKED) {
+        DigitalAsset asset =
+                getByAssetId(assetId);
 
-            throw new IllegalStateException(
-                    "Revoked asset cannot be updated"
-            );
-        }
 
-        validateAssetName(assetName);
-        validateAssetType(assetType);
+        Path filePath =
+                getAssetFile(assetId);
 
-        asset.setAssetName(assetName.trim());
-        asset.setAssetType(assetType.trim());
-
-        if (description != null) {
-            asset.setDescription(description.trim());
-        } else {
-            asset.setDescription(null);
-        }
-
-        /*
-         * Recalculate the hash after modification.
-         */
-        String newHash = generateAssetHash(
-                asset.getAssetName(),
-                asset.getAssetType(),
-                asset.getDescription(),
-                asset.getOwnerId()
-        );
-
-        /*
-         * Make sure another asset does not already use
-         * the new hash.
-         */
-        if (!newHash.equals(asset.getAssetHash())
-                && assetRepository.existsByAssetHash(newHash)) {
-
-            throw new IllegalStateException(
-                    "Another asset already contains the same data"
-            );
-        }
-
-        asset.setAssetHash(newHash);
-
-        return assetRepository.save(asset);
-    }
-
-    // =========================================================
-    // ASSIGN ASSET
-    // =========================================================
-
-    public DigitalAsset assignAsset(
-            Long id,
-            Long newOwnerId) {
-
-        DigitalAsset asset = getAssetById(id);
-
-        validateOwnerId(newOwnerId);
-
-        if (asset.getStatus() ==
-                DigitalAsset.AssetStatus.REVOKED) {
-
-            throw new IllegalStateException(
-                    "Revoked asset cannot be assigned"
-            );
-        }
-
-        asset.setOwnerId(newOwnerId);
-
-        asset.setStatus(
-                DigitalAsset.AssetStatus.ACTIVE
-        );
-
-        /*
-         * Owner is part of the hash, so the hash changes
-         * when ownership changes.
-         */
-        String newHash = generateAssetHash(
-                asset.getAssetName(),
-                asset.getAssetType(),
-                asset.getDescription(),
-                asset.getOwnerId()
-        );
-
-        if (!newHash.equals(asset.getAssetHash())
-                && assetRepository.existsByAssetHash(newHash)) {
-
-            throw new IllegalStateException(
-                    "Another asset already contains the same data"
-            );
-        }
-
-        asset.setAssetHash(newHash);
-
-        return assetRepository.save(asset);
-    }
-
-    // =========================================================
-    // TRANSFER ASSET
-    // =========================================================
-
-    public DigitalAsset transferAsset(
-            Long id,
-            Long newOwnerId) {
-
-        DigitalAsset asset = getAssetById(id);
-
-        validateOwnerId(newOwnerId);
-
-        if (asset.getStatus() ==
-                DigitalAsset.AssetStatus.REVOKED) {
-
-            throw new IllegalStateException(
-                    "Revoked asset cannot be transferred"
-            );
-        }
-
-        if (asset.getOwnerId().equals(newOwnerId)) {
-
-            throw new IllegalArgumentException(
-                    "New owner must be different from current owner"
-            );
-        }
-
-        asset.setOwnerId(newOwnerId);
-
-        asset.setStatus(
-                DigitalAsset.AssetStatus.TRANSFERRED
-        );
-
-        String newHash = generateAssetHash(
-                asset.getAssetName(),
-                asset.getAssetType(),
-                asset.getDescription(),
-                asset.getOwnerId()
-        );
-
-        if (!newHash.equals(asset.getAssetHash())
-                && assetRepository.existsByAssetHash(newHash)) {
-
-            throw new IllegalStateException(
-                    "Another asset already contains the same data"
-            );
-        }
-
-        asset.setAssetHash(newHash);
-
-        return assetRepository.save(asset);
-    }
-
-    // =========================================================
-    // REVOKE ASSET
-    // =========================================================
-
-    public DigitalAsset revokeAsset(Long id) {
-
-        DigitalAsset asset = getAssetById(id);
-
-        if (asset.getStatus() ==
-                DigitalAsset.AssetStatus.REVOKED) {
-
-            throw new IllegalStateException(
-                    "Asset is already revoked"
-            );
-        }
-
-        asset.setStatus(
-                DigitalAsset.AssetStatus.REVOKED
-        );
-
-        return assetRepository.save(asset);
-    }
-
-    // =========================================================
-    // RESTORE ASSET
-    // =========================================================
-
-    public DigitalAsset restoreAsset(Long id) {
-
-        DigitalAsset asset = getAssetById(id);
-
-        if (asset.getStatus() !=
-                DigitalAsset.AssetStatus.REVOKED) {
-
-            throw new IllegalStateException(
-                    "Only revoked assets can be restored"
-            );
-        }
-
-        asset.setStatus(
-                DigitalAsset.AssetStatus.ACTIVE
-        );
-
-        return assetRepository.save(asset);
-    }
-
-    // =========================================================
-    // VERIFY DATABASE HASH
-    // =========================================================
-
-    @Transactional(readOnly = true)
-    public boolean verifyAsset(Long id) {
-
-        DigitalAsset asset = getAssetById(id);
-
-        String calculatedHash = generateAssetHash(
-                asset.getAssetName(),
-                asset.getAssetType(),
-                asset.getDescription(),
-                asset.getOwnerId()
-        );
-
-        return calculatedHash.equalsIgnoreCase(
-                normalizeHash(asset.getAssetHash())
-        );
-    }
-
-    // =========================================================
-    // GENERATE SHA-256 HASH
-    // =========================================================
-
-    private String generateAssetHash(
-            String assetName,
-            String assetType,
-            String description,
-            Long ownerId) {
-
-        String canonicalData =
-                normalizeString(assetName)
-                        + "|"
-                        + normalizeString(assetType)
-                        + "|"
-                        + normalizeString(description)
-                        + "|"
-                        + ownerId;
 
         try {
 
-            MessageDigest digest =
-                    MessageDigest.getInstance("SHA-256");
+            String currentHash =
+                    calculateSha256(filePath);
 
-            byte[] hash =
-                    digest.digest(
-                            canonicalData.getBytes(
-                                    StandardCharsets.UTF_8
-                            )
-                    );
 
-            StringBuilder hex =
-                    new StringBuilder();
+            return currentHash.equalsIgnoreCase(
+                    asset.getAssetHash()
+            );
 
-            for (byte b : hash) {
-                hex.append(
-                        String.format("%02x", b)
-                );
-            }
+        } catch (IOException e) {
 
-            return hex.toString();
-
-        } catch (NoSuchAlgorithmException e) {
-
-            throw new IllegalStateException(
-                    "SHA-256 algorithm not available",
+            throw new RuntimeException(
+                    "Unable to verify asset",
                     e
             );
         }
     }
 
-    // =========================================================
-    // NORMALIZE HASH
-    // =========================================================
 
-    private String normalizeHash(String hash) {
+    // ----------------------------------------
+    // Generate Asset ID
+    // ----------------------------------------
 
-        if (hash == null) {
+    private String generateAssetId() {
+
+        String assetId;
+
+        do {
+
+            String randomPart =
+                    UUID.randomUUID()
+                            .toString()
+                            .replace("-", "")
+                            .substring(0, 8)
+                            .toUpperCase();
+
+
+            assetId = "AST-" + randomPart;
+
+        } while (
+                assetRepository.existsByAssetId(assetId)
+        );
+
+
+        return assetId;
+    }
+
+
+    // ----------------------------------------
+    // Sanitize filename
+    // ----------------------------------------
+
+    private String sanitizeFileName(String fileName) {
+
+        if (fileName == null || fileName.isBlank()) {
+
+            return "uploaded-file";
+        }
+
+
+        return Paths
+                .get(fileName)
+                .getFileName()
+                .toString();
+    }
+
+
+    // ----------------------------------------
+    // Get extension
+    // ----------------------------------------
+
+    private String getFileExtension(String fileName) {
+
+        int index =
+                fileName.lastIndexOf('.');
+
+
+        if (index <= 0
+                || index == fileName.length() - 1) {
+
             return "";
         }
 
-        String normalized = hash.trim();
 
-        if (normalized.startsWith("0x")
-                || normalized.startsWith("0X")) {
-
-            normalized =
-                    normalized.substring(2);
-        }
-
-        return normalized;
+        return fileName
+                .substring(index + 1)
+                .toLowerCase();
     }
 
-    // =========================================================
-    // NORMALIZE STRING
-    // =========================================================
 
-    private String normalizeString(String value) {
+    // ----------------------------------------
+    // Calculate SHA-256
+    // ----------------------------------------
 
-        if (value == null) {
-            return "";
-        }
+    private String calculateSha256(Path file)
+            throws IOException {
 
-        return value.trim();
-    }
+        try {
 
-    // =========================================================
-    // VALIDATION
-    // =========================================================
+            MessageDigest digest =
+                    MessageDigest.getInstance(
+                            "SHA-256"
+                    );
 
-    private void validateAssetName(String assetName) {
 
-        if (assetName == null
-                || assetName.isBlank()) {
+            try (InputStream inputStream =
+                         Files.newInputStream(file)) {
 
-            throw new IllegalArgumentException(
-                    "Asset name cannot be empty"
-            );
-        }
-    }
+                byte[] buffer =
+                        new byte[8192];
 
-    private void validateAssetType(String assetType) {
+                int bytesRead;
 
-        if (assetType == null
-                || assetType.isBlank()) {
 
-            throw new IllegalArgumentException(
-                    "Asset type cannot be empty"
-            );
-        }
-    }
+                while (
+                        (bytesRead =
+                                inputStream.read(buffer))
+                                != -1
+                ) {
 
-    private void validateOwnerId(Long ownerId) {
+                    digest.update(
+                            buffer,
+                            0,
+                            bytesRead
+                    );
+                }
+            }
 
-        if (ownerId == null || ownerId <= 0) {
 
-            throw new IllegalArgumentException(
-                    "Owner ID must be a valid positive number"
+            byte[] hash =
+                    digest.digest();
+
+
+            StringBuilder result =
+                    new StringBuilder();
+
+
+            for (byte b : hash) {
+
+                result.append(
+                        String.format(
+                                "%02x",
+                                b
+                        )
+                );
+            }
+
+
+            return result.toString();
+
+        } catch (NoSuchAlgorithmException e) {
+
+            throw new RuntimeException(
+                    "SHA-256 algorithm not available",
+                    e
             );
         }
     }

@@ -2,10 +2,21 @@ package com.AegisID.backend.asset.controller;
 
 import com.AegisID.backend.asset.entity.DigitalAsset;
 import com.AegisID.backend.asset.service.DigitalAssetService;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
+
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/assets")
@@ -13,208 +24,184 @@ public class DigitalAssetController {
 
     private final DigitalAssetService assetService;
 
+
     public DigitalAssetController(
-            DigitalAssetService assetService) {
+            DigitalAssetService assetService
+    ) {
         this.assetService = assetService;
     }
 
-    // =========================================================
-    // CREATE
-    // =========================================================
 
-    @PostMapping
+    // ========================================
+    // CREATE / UPLOAD ASSET
+    // ========================================
+
+    @PostMapping(
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
+    )
     public ResponseEntity<DigitalAsset> createAsset(
-            @RequestBody CreateAssetRequest request) {
+
+            @RequestParam String assetName,
+
+            @RequestParam String assetType,
+
+            @RequestParam(required = false)
+            String description,
+
+            @RequestParam Long ownerId,
+
+            @RequestParam("file")
+            MultipartFile file
+
+    ) throws Exception {
+
 
         DigitalAsset asset =
                 assetService.createAsset(
-                        request.assetName(),
-                        request.assetType(),
-                        request.description(),
-                        request.ownerId()
+                        assetName,
+                        assetType,
+                        description,
+                        ownerId,
+                        file
                 );
 
-        return ResponseEntity.ok(asset);
+
+        return ResponseEntity
+                .status(201)
+                .body(asset);
     }
 
-    // =========================================================
-    // GET ALL
-    // =========================================================
+
+    // ========================================
+    // GET ALL ASSETS
+    // ========================================
 
     @GetMapping
-    public ResponseEntity<List<DigitalAsset>> getAllAssets() {
+    public ResponseEntity<List<DigitalAsset>>
+    getAllAssets() {
 
         return ResponseEntity.ok(
                 assetService.getAllAssets()
         );
     }
 
-    // =========================================================
-    // GET BY ID
-    // =========================================================
 
-    @GetMapping("/{id}")
-    public ResponseEntity<DigitalAsset> getAssetById(
-            @PathVariable Long id) {
+    // ========================================
+    // GET ASSET BY ASSET ID
+    // ========================================
+
+    @GetMapping("/asset-id/{assetId}")
+    public ResponseEntity<DigitalAsset>
+    getAssetById(
+            @PathVariable String assetId
+    ) {
 
         return ResponseEntity.ok(
-                assetService.getAssetById(id)
+                assetService.getByAssetId(assetId)
         );
     }
 
-    // =========================================================
-    // GET BY HASH
-    // =========================================================
 
-    @GetMapping("/hash/{assetHash}")
-    public ResponseEntity<DigitalAsset> getAssetByHash(
-            @PathVariable String assetHash) {
-
-        return ResponseEntity.ok(
-                assetService.getAssetByHash(assetHash)
-        );
-    }
-
-    // =========================================================
-    // GET BY OWNER
-    // =========================================================
+    // ========================================
+    // GET ASSETS BY OWNER
+    // ========================================
 
     @GetMapping("/owner/{ownerId}")
-    public ResponseEntity<List<DigitalAsset>> getAssetsByOwner(
-            @PathVariable Long ownerId) {
+    public ResponseEntity<List<DigitalAsset>>
+    getAssetsByOwner(
+            @PathVariable Long ownerId
+    ) {
 
         return ResponseEntity.ok(
-                assetService.getAssetsByOwner(ownerId)
+                assetService.getByOwnerId(ownerId)
         );
     }
 
-    // =========================================================
-    // GET BY STATUS
-    // =========================================================
 
-    @GetMapping("/status/{status}")
-    public ResponseEntity<List<DigitalAsset>> getAssetsByStatus(
-            @PathVariable DigitalAsset.AssetStatus status) {
+    // ========================================
+    // VIEW / DOWNLOAD ACTUAL FILE
+    // ========================================
 
-        return ResponseEntity.ok(
-                assetService.getAssetsByStatus(status)
-        );
+    @GetMapping("/asset-id/{assetId}/file")
+    public ResponseEntity<Resource>
+    getAssetFile(
+            @PathVariable String assetId
+    ) throws Exception {
+
+
+        Path path =
+                assetService.getAssetFile(assetId);
+
+
+        Resource resource =
+                new FileSystemResource(path);
+
+
+        String contentType =
+                Files.probeContentType(path);
+
+
+        if (contentType == null) {
+
+            contentType =
+                    MediaType.APPLICATION_OCTET_STREAM_VALUE;
+        }
+
+
+        return ResponseEntity.ok()
+
+                .contentType(
+                        MediaType.parseMediaType(
+                                contentType
+                        )
+                )
+
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "inline; filename=\"" +
+                                path.getFileName() +
+                                "\""
+                )
+
+                .body(resource);
     }
 
-    // =========================================================
-    // UPDATE
-    // =========================================================
 
-    @PutMapping("/{id}")
-    public ResponseEntity<DigitalAsset> updateAsset(
-            @PathVariable Long id,
-            @RequestBody UpdateAssetRequest request) {
+    // ========================================
+    // VERIFY FILE
+    // ========================================
+
+    @GetMapping("/asset-id/{assetId}/verify")
+    public ResponseEntity<Map<String, Object>>
+    verifyAsset(
+            @PathVariable String assetId
+    ) {
+
 
         DigitalAsset asset =
-                assetService.updateAsset(
-                        id,
-                        request.assetName(),
-                        request.assetType(),
-                        request.description()
-                );
+                assetService.getByAssetId(assetId);
 
-        return ResponseEntity.ok(asset);
-    }
 
-    // =========================================================
-    // ASSIGN
-    // =========================================================
+        boolean verified =
+                assetService.verifyAsset(assetId);
 
-    @PutMapping("/{id}/assign")
-    public ResponseEntity<DigitalAsset> assignAsset(
-            @PathVariable Long id,
-            @RequestBody OwnerRequest request) {
 
         return ResponseEntity.ok(
-                assetService.assignAsset(
-                        id,
-                        request.ownerId()
+                Map.of(
+                        "assetId",
+                        asset.getAssetId(),
+
+                        "verified",
+                        verified,
+
+                        "status",
+                        verified
+                                ? "INTEGRITY_VERIFIED"
+                                : "INTEGRITY_FAILED",
+
+                        "storedHash",
+                        asset.getAssetHash()
                 )
         );
-    }
-
-    // =========================================================
-    // TRANSFER
-    // =========================================================
-
-    @PutMapping("/{id}/transfer")
-    public ResponseEntity<DigitalAsset> transferAsset(
-            @PathVariable Long id,
-            @RequestBody OwnerRequest request) {
-
-        return ResponseEntity.ok(
-                assetService.transferAsset(
-                        id,
-                        request.ownerId()
-                )
-        );
-    }
-
-    // =========================================================
-    // REVOKE
-    // =========================================================
-
-    @PutMapping("/{id}/revoke")
-    public ResponseEntity<DigitalAsset> revokeAsset(
-            @PathVariable Long id) {
-
-        return ResponseEntity.ok(
-                assetService.revokeAsset(id)
-        );
-    }
-
-    // =========================================================
-    // RESTORE
-    // =========================================================
-
-    @PutMapping("/{id}/restore")
-    public ResponseEntity<DigitalAsset> restoreAsset(
-            @PathVariable Long id) {
-
-        return ResponseEntity.ok(
-                assetService.restoreAsset(id)
-        );
-    }
-
-    // =========================================================
-    // VERIFY DATABASE INTEGRITY
-    // =========================================================
-
-    @GetMapping("/{id}/verify")
-    public ResponseEntity<Boolean> verifyAsset(
-            @PathVariable Long id) {
-
-        return ResponseEntity.ok(
-                assetService.verifyAsset(id)
-        );
-    }
-
-    // =========================================================
-    // REQUEST RECORDS
-    // =========================================================
-
-    public record CreateAssetRequest(
-            String assetName,
-            String assetType,
-            String description,
-            Long ownerId
-    ) {
-    }
-
-    public record UpdateAssetRequest(
-            String assetName,
-            String assetType,
-            String description
-    ) {
-    }
-
-    public record OwnerRequest(
-            Long ownerId
-    ) {
     }
 }

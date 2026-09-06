@@ -9,9 +9,8 @@ import {
   Building2, 
   Users, 
   ShieldCheck, 
-  FileText, 
-  Cpu, 
-  Lock 
+  FileText,
+  Search
 } from "lucide-react";
 
 interface SidebarProps {
@@ -28,6 +27,7 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
     { id: "identity", label: "Identity (DID)", icon: Fingerprint },
     { id: "credentials", label: "Verifiable Credentials", icon: Award },
     { id: "assets", label: "Digital Assets", icon: Box },
+    { id: "verify-asset", label: "Verify Asset", icon: Search },
     { id: "verification", label: "Unified Verification", icon: CheckCircle2 },
     { id: "organizations", label: "Organizations", icon: Building2 },
     ...(isAdmin ? [{ id: "admin", label: "User Management", icon: Users }] : []),

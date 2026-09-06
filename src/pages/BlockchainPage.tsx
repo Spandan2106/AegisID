@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { api } from "../api/client";
-import { ShieldCheck, Activity, Cpu, Server, Link, Database, Terminal, CheckCircle2, RefreshCw, Copy, Check, ShieldAlert } from "lucide-react";
+import { ShieldCheck, Activity, Cpu, Server, Link, Database, Terminal, CheckCircle2, RefreshCw, Copy, Check, ShieldAlert, Filter } from "lucide-react";
 import { TamperSimulationModal } from "../components/TamperSimulationModal";
+import { NetworkVisualizer } from "../components/NetworkVisualizer";
+import { NetworkNodeGraph } from "../components/NetworkNodeGraph";
 
 export function BlockchainPage() {
   const [status, setStatus] = useState<any>(null);
@@ -10,6 +12,7 @@ export function BlockchainPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [copiedHash, setCopiedHash] = useState<string | null>(null);
   const [isSimulationOpen, setIsSimulationOpen] = useState(false);
+  const [filterType, setFilterType] = useState<string>("ALL");
 
   const load = async () => {
     setIsRefreshing(true);
@@ -38,6 +41,12 @@ export function BlockchainPage() {
     setTimeout(() => setCopiedHash(null), 2000);
   };
 
+  const filteredTxs = useMemo(() => {
+    if (!txs) return [];
+    if (filterType === "ALL") return txs;
+    return txs.filter(t => t.entityType?.toUpperCase() === filterType.toUpperCase());
+  }, [txs, filterType]);
+
   return (
     <div className="space-y-8 pb-12">
       {/* Header */}
@@ -49,16 +58,16 @@ export function BlockchainPage() {
         <div className="flex items-center space-x-3">
           <button
             onClick={() => setIsSimulationOpen(true)}
-            className="flex items-center space-x-2 px-4 py-2 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 rounded-xl hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors text-sm font-semibold"
+            className="flex items-center space-x-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-sm transition-all text-sm font-semibold"
             title="Run Integrity Tamper Simulation"
           >
             <ShieldAlert className="w-4 h-4" />
-            <span className="hidden sm:inline">Simulate Tamper</span>
+            <span>Run Tamper Simulation</span>
           </button>
           <button
             onClick={load}
             disabled={isRefreshing}
-            className="p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white bg-white dark:bg-[#0d0d0f] border border-slate-200 dark:border-white/10 rounded-xl transition-colors disabled:opacity-50"
+            className="p-2.5 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white bg-white dark:bg-[#0d0d0f] border border-slate-200 dark:border-white/10 rounded-xl transition-colors disabled:opacity-50"
             title="Refresh Network Status"
           >
             <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin text-blue-500' : ''}`} />
@@ -68,6 +77,11 @@ export function BlockchainPage() {
             <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Network Live</span>
           </div>
         </div>
+      </div>
+
+      <div className="flex flex-col gap-6">
+        <NetworkVisualizer txs={txs} />
+        <NetworkNodeGraph txs={txs} />
       </div>
 
       {status && (
@@ -190,18 +204,41 @@ export function BlockchainPage() {
           </div>
         </div>
 
-        {/* Ledger */}
+        {/* Ledger with Category Filter */}
         <div className="lg:col-span-2 bg-white dark:bg-[#0d0d0f] border border-slate-200 dark:border-white/5 rounded-3xl overflow-hidden shadow-sm flex flex-col">
-          <div className="p-6 border-b border-slate-200 dark:border-white/5 flex items-center space-x-3">
-            <Terminal className="w-5 h-5 text-slate-500" />
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Live Anchor Ledger</h3>
+          <div className="p-6 border-b border-slate-200 dark:border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center space-x-3">
+              <Terminal className="w-5 h-5 text-slate-500" />
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Live Anchor Ledger</h3>
+                <p className="text-xs text-slate-500">Immutable anchoring transactions across smart contract registries</p>
+              </div>
+            </div>
+
+            {/* Filter Tabs */}
+            <div className="flex items-center space-x-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-white/5 text-xs font-semibold">
+              {["ALL", "IDENTITY", "CREDENTIAL", "ASSET"].map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setFilterType(tab)}
+                  className={`px-3 py-1.5 rounded-lg transition-all capitalize ${
+                    filterType === tab
+                      ? "bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm"
+                      : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+                  }`}
+                >
+                  {tab.toLowerCase()}
+                </button>
+              ))}
+            </div>
           </div>
+
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-950/50 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
                   <th className="p-4 border-b border-slate-200 dark:border-white/5">Operation</th>
-                  <th className="p-4 border-b border-slate-200 dark:border-white/5">Entity</th>
+                  <th className="p-4 border-b border-slate-200 dark:border-white/5">Entity Category</th>
                   <th className="p-4 border-b border-slate-200 dark:border-white/5">Tx Hash</th>
                   <th className="p-4 border-b border-slate-200 dark:border-white/5">Block</th>
                   <th className="p-4 border-b border-slate-200 dark:border-white/5">Status</th>
@@ -210,10 +247,10 @@ export function BlockchainPage() {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50 text-sm">
                 {loading ? (
                   <tr><td colSpan={5} className="p-8 text-center text-slate-400">Syncing ledger...</td></tr>
-                ) : txs.length === 0 ? (
-                  <tr><td colSpan={5} className="p-8 text-center text-slate-400">No transactions recorded in current epoch.</td></tr>
+                ) : filteredTxs.length === 0 ? (
+                  <tr><td colSpan={5} className="p-8 text-center text-slate-400">No transactions found for filter "{filterType.toLowerCase()}".</td></tr>
                 ) : (
-                  txs.map((t) => (
+                  filteredTxs.map((t) => (
                     <tr key={t.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors group">
                       <td className="p-4">
                         <div className="inline-flex items-center space-x-1.5 px-2 py-1 rounded bg-slate-100 dark:bg-slate-800">
@@ -221,7 +258,17 @@ export function BlockchainPage() {
                           <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">{t.blockchainOperation}</span>
                         </div>
                       </td>
-                      <td className="p-4 text-xs text-slate-600 dark:text-slate-400 font-medium capitalize">{t.entityType} #{t.entityId}</td>
+                      <td className="p-4">
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
+                          t.entityType?.toUpperCase() === 'IDENTITY' 
+                            ? 'bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400 border border-purple-200 dark:border-purple-500/20'
+                            : t.entityType?.toUpperCase() === 'CREDENTIAL'
+                            ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20'
+                            : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20'
+                        }`}>
+                          {t.entityType} #{t.entityId}
+                        </span>
+                      </td>
                       <td className="p-4">
                         <div className="flex items-center space-x-2 group/copy cursor-pointer" onClick={() => handleCopy(t.transactionHash)}>
                           <span className="font-mono text-xs text-blue-600 dark:text-blue-400 truncate max-w-[140px] transition-colors">{t.transactionHash}</span>
@@ -254,3 +301,4 @@ export function BlockchainPage() {
     </div>
   );
 }
+
