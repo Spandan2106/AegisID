@@ -82,6 +82,8 @@ The project is built as a prototype for **Smart India Hackathon (SIH) 2026 – P
                                              │   EVM / Hardhat  │
                                              └──────────────────┘
 ```
+[![Architecture diagram](https://gitdiagram.com/diagram-badge.svg)](https://gitdiagram.com/spandan2106/aegisid?utm_source=readme&utm_medium=badge)
+[![Architecture diagram of spandan2106/aegisid](https://gitdiagram.com/spandan2106/aegisid/diagram.png)](https://gitdiagram.com/spandan2106/aegisid?utm_source=readme&utm_medium=picture)
 
 ### Data principle
 
